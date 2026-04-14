@@ -1,0 +1,62 @@
+name: Cloud Run staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "code-smells-3/**"
+      - "code-smells-3/.github/workflows/deploy-staging.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SERVICE_NAME: code-smells-3-staging
+      REGION: europe-west1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (staging service account JSON)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_JSON_STAGING }}
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID_STAGING }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build and push image (staging)
+        run: |
+          set -eux
+          PROJECT_ID="${{ secrets.GCP_PROJECT_ID_STAGING }}"
+          REGION="${{ env.REGION }}"
+          REPOSITORY="apps"
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/code-smells-3:${GITHUB_SHA}"
+          docker build -t "${IMAGE}" -f code-smells-3/Dockerfile code-smells-3
+          docker push "${IMAGE}"
+          echo "DEPLOY_IMAGE=${IMAGE}" >> "${GITHUB_ENV}"
+
+      - name: Deploy to Cloud Run
+        env:
+          MONGODB_URL: ${{ secrets.STAGING_MONGODB_URL }}
+          DATABASE_NAME: ${{ secrets.STAGING_DATABASE_NAME }}
+        run: |
+          set -eux
+          gcloud run deploy "${{ env.SERVICE_NAME }}" \
+            --project "${{ secrets.GCP_PROJECT_ID_STAGING }}" \
+            --region "${{ env.REGION }}" \
+            --image "${DEPLOY_IMAGE}" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --set-env-vars "MONGODB_URL=${MONGODB_URL},DATABASE_NAME=${DATABASE_NAME}"

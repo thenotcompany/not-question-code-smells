@@ -1,0 +1,88 @@
+/* Global theme tokens and base document surfaces */
+
+:root {
+  /* depth */
+  --z-nav: 10;
+  --z-content: 1;
+  /* chroma */
+  --hue-primary: 252;
+  --hue-accent: 168;
+  --sat-soft: 42%;
+  --lit-bg: 12%;
+  --lit-surface: 16%;
+  --lit-elevated: 22%;
+  --lit-text: 96%;
+  --lit-muted: 72%;
+  /* radii */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  /* motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 220ms;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* scrolling */
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: hsl(var(--hue-primary) var(--sat-soft) var(--lit-text));
+  background-color: hsl(230 28% 8%);
+  background-image:
+    radial-gradient(ellipse 120% 80% at 50% -40%, hsl(var(--hue-primary) 55% 28% / 0.45), transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 100%, hsl(var(--hue-accent) 40% 22% / 0.35), transparent 50%),
+    linear-gradient(165deg, hsl(232 32% 10%) 0%, hsl(240 28% 6%) 45%, hsl(225 35% 7%) 100%);
+  background-attachment: fixed;
+}
+
+/* decorative noise overlay */
+body::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.04;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+h1,
+h2 {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+h1 {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  background: linear-gradient(
+    115deg,
+    hsl(var(--hue-primary) 70% 88%) 0%,
+    hsl(var(--hue-accent) 55% 78%) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+h2 {
+  font-size: clamp(1.25rem, 2.5vw, 1.5rem);
+  color: hsl(0 0% 94%);
+  margin-block: 0 1.25rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid hsl(255 25% 28% / 0.55);
+  box-shadow: 0 1px 0 0 hsl(255 40% 40% / 0.08);
+}

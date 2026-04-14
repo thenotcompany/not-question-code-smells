@@ -1,0 +1,10 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27018:27017"
+    volumes:
+      - chat_api_mongo_data:/data/db
+
+volumes:
+  chat_api_mongo_data:
