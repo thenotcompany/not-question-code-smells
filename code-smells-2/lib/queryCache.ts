@@ -53,12 +53,15 @@ export function setCached(
 
 // GET with cache layer on top
 export async function cachedGet<T>(url: string): Promise<T> {
+  // First check if the data is already in the cache
   const key = cacheKey("GET", url)
   const existing = store.get(key)
   const cached = getCached(key)
+  // If the data is in the cache and is not stale, return it
   if (cached !== null && cached !== undefined && existing && !isStale(existing)) {
     return cached as T
   }
+  // If the data is not in the cache, fetch it from the API
   const res = await fetch(url)
   const text = await res.text()
   const parsed: unknown = JSON.parse(text)
