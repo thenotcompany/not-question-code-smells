@@ -1,5 +1,5 @@
-import { cachedGet } from "../lib/queryCache"
-import { isProjectsResponse, type ProjectsResponse } from "../types/api/project"
+import { cachedGet } from "~/lib/queryCache"
+import { isProjectsResponse, type ProjectsResponse } from "~/types/api/project"
 
 /** Loads the projects payload from `/api/projects`. */
 export function useProjectList() {

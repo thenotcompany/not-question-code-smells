@@ -1,6 +1,9 @@
 // Nuxt application configuration entrypoint
 export default defineNuxtConfig({
   devtools: { enabled: true },
+  imports: {
+    dirs: ["lib", "utils"],
+  },
   typescript: {
     strict: true,
   },

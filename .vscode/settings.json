@@ -1,0 +1,5 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/code-smells-1/.venv/bin/python",
+  "python.analysis.extraPaths": ["${workspaceFolder}/code-smells-1"],
+  "python.analysis.diagnosticMode": "workspace"
+}

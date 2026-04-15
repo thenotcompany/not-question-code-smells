@@ -4,7 +4,7 @@ Nuxt 3 + TypeScript web app.
 
 ## Context
 
-Small **internal admin-style UI**: **Home** introduces the app, **Users** lists people from a Nitro **`/api/users`** route, **Dashboard** loads **`/api/projects`** with project rows and a **metric tile**, and **Team → member** shows another view backed by the same user API. Data is static JSON for local development.
+Single-page **operations console**: **Users** and **Projects** are two tabs on the home route. There are two main components for each tab `ProjectsPanel`and `UsersPanel`. The files under the `/server` folder are use to do mocks for API calls, do not consider them as part of the exercise.
 
 ## Run
 

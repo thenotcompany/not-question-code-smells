@@ -1,4 +1,4 @@
-// This is just a mock API for projects, do not consider it as part of the exercise.
+// Mock projects list for local development.
 import type { ProjectsResponse } from "~/types/api/project"
 
 export default defineEventHandler((): ProjectsResponse => {

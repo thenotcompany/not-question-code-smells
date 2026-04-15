@@ -1,4 +1,4 @@
-// This is just a mock API for users, do not consider it as part of the exercise.
+// Mock users list for local development.
 import type { UserDto } from "~/types/api/user"
 
 export default defineEventHandler((): UserDto[] => {

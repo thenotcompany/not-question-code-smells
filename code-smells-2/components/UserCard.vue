@@ -6,30 +6,23 @@ defineProps<{ user: UserDto }>()
 
 <template>
   <!-- card for a single user -->
-  <article class="card">
+  <article
+    class="card custom-flex custom-flex-row custom-flex-wrap custom-align-baseline custom-gap-3 custom-pad-4 custom-round-md">
     <!-- user's display name -->
-    <strong class="card__name">{{ user.name }}</strong>
+    <strong class="card__name custom-text-subsection custom-tone-strong">{{ user.name }}</strong>
     <!-- user's id string -->
-    <span class="card__id">{{ user.id }}</span>
+    <span class="card__id custom-text-fine custom-tone-soft custom-text-caps custom-weight-medium">{{ user.id }}</span>
   </article>
 </template>
 
 <style scoped>
 .card {
   position: relative;
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
-  padding: 1rem 1.15rem 1rem 1.35rem;
-  border-radius: var(--r-md, 16px);
   overflow: hidden;
-  background: linear-gradient(
-    125deg,
-    hsl(255 26% 20% / 0.92) 0%,
-    hsl(232 30% 16% / 0.88) 55%,
-    hsl(255 22% 18% / 0.75) 100%
-  );
+  background: linear-gradient(125deg,
+      hsl(255 26% 20% / 0.92) 0%,
+      hsl(232 30% 16% / 0.88) 55%,
+      hsl(255 22% 18% / 0.75) 100%);
   border: 1px solid hsl(255 32% 36% / 0.45);
   box-shadow:
     0 2px 4px hsl(0 0% 0% / 0.2),
@@ -61,20 +54,9 @@ defineProps<{ user: UserDto }>()
     inset 0 1px 0 0 hsl(0 0% 100% / 0.07);
 }
 
-.card__name {
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: hsl(0 0% 96%);
-}
-
 .card__id {
-  font-size: 0.8rem;
-  font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: hsl(255 15% 62%);
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
   background: hsl(255 22% 14% / 0.9);
