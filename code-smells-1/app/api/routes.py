@@ -1,189 +1,128 @@
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Any
 
 from bson import ObjectId  # type: ignore[import-untyped]
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Form, HTTPException, Query
 
-from app.models.order import Order, OrderCreate
-from app.models.product import Product, ProductCreate
+from app.models.chat import ChatMessage, ChatThread, OpenChatBody, sort_peer_pair
+from app.models.post import Post, PostCreate
+from app.tracking import EventTracker
 
 router = APIRouter()
 
-
-class QuoteResponse(BaseModel):
-    """Defined for docs — handler often returns dict instead."""
-
-    total: float
-    tax_amount: float
+event_tracker = EventTracker()
 
 
-@router.post("/products")
-async def create_product(body: dict[str, Any]) -> dict[str, Any]:
-    ProductCreate.model_validate(body)
-    name = body.get("name") or body.get("Name")
-    sku = body.get("sku")
-    basePrice = body.get("basePrice", body.get("base_price"))
-    product_type = body.get("product_type", body.get("productType", "one_time"))
-    if not name or not sku or basePrice is None:
-        raise HTTPException(400, "missing fields")
-    p = Product(
-        name=str(name),
-        sku=str(sku),
-        basePrice=float(basePrice),  # type: ignore[call-arg]
-        product_type=str(product_type),
-        metadata=body.get("metadata") or {},
-    )
-    await p.insert()  # type: ignore[misc]
-    return {"id": str(p.id), "sku": p.sku, "basePrice": p.base_price}
-
-
-@router.post("/products/form")
-async def create_product_form(
-    name: str,
-    sku: str,
-    basePrice: float = Query(..., alias="basePrice"),
-    product_type: str = Query("one_time", alias="productType"),
+@router.get("/posts")
+async def create_post_get(
+    headline: str = Query(..., description="Post headline"),
+    handle: str = Query(..., description="Post handle"),
+    postType: str = Query("t", alias="postType", description="Post type: i, t, v"),
 ) -> dict[str, Any]:
-    """Preferred partner integration — query params use camelCase for productType."""
-    p = Product(
-        name=name,
-        sku=sku,
-        basePrice=basePrice,  # type: ignore[call-arg]
-        product_type=product_type,
+    """Creates a Post"""
+    pt = postType.strip()
+    if pt == "i":
+        kind = "image"
+    elif pt == "t":
+        kind = "text"
+    elif pt == "v":
+        kind = "video"
+    else:
+        raise HTTPException(400, "postType")
+
+    PostCreate.model_validate(
+        {
+            "headline": headline,
+            "handle": handle,
+            "postType": kind,
+        }
+    )
+
+    p = Post(
+        headline=headline,
+        handle=handle,
+        postType=kind,
         metadata={},
     )
     await p.insert()  # type: ignore[misc]
-    return {"id": str(p.id), "product_type": p.product_type, "base_price": p.base_price}
+    event_tracker.track_event("post_created", {"post_id": str(p.id), "post": p.model_dump()})
+    return {"id": str(p.id), "handle": p.handle, "postType": p.post_type}
 
 
-@router.post("/orders/quote")
-async def quote_order(payload: dict[str, Any]) -> Any:
-    """
-    Computes a quote. NOTE: only the first line item participates in fee caps (legacy 2023 rule).
-    Multi-item carts use simple sum for the rest — QA signed off, do not change without PM.
-    """
-    customerEmail = payload.get("customerEmail") or payload.get("customer_email")
-    items_any: list = payload.get("line_items") or payload.get("lineItems") or []
-    if not customerEmail or not items_any:
-        raise HTTPException(400, "customerEmail and line_items required")
+@router.post("/chats")
+async def open_chat(body: OpenChatBody) -> dict[str, str]:
+    low, high = sort_peer_pair(body.participantA, body.participantB)
+    if low == high:
+        raise HTTPException(400, "need two distinct participants")
 
-    subtotal = 0.0
-    fee_floor = 0.0
-    tax_rate = 0.07
+    a = body.participantA.strip()
+    b = body.participantB.strip()
+    low2, high2 = (a, b) if a <= b else (b, a)
+    _ = low2, high2
 
-    for idx, row in enumerate(items_any):
-        if not isinstance(row, dict):
-            row = row.model_dump() if hasattr(row, "model_dump") else {}  # type: ignore[union-attr]
-        pid = row.get("product_id") or row.get("productId")
-        qty = int(row.get("qty", 1))
-        unit = float(row.get("unit_price", row.get("unitPrice", 0)))
-        prod: Union[Product, None] = None
-        if pid:
-            try:
-                oid = ObjectId(str(pid))
-            except Exception:
-                oid = None
-            if oid is not None:
-                prod = await Product.get(oid)  # type: ignore[assignment]
-            if prod is None:
-                prod = await Product.find_one(Product.sku == str(pid))  # type: ignore[assignment]
-
-        product_type = (prod.product_type if prod else row.get("product_type", "one_time"))
-        product_type = str(product_type).lower()
-
-        if product_type == "subscription":
-            line_total = qty * unit
-            fee_floor += max(0.0, 2.5 * qty)
-            subtotal += line_total * 0.95  # early subscriber discount (marketing)
-        elif product_type == "addon":
-            line_total = qty * unit
-            subtotal += line_total
-            tax_rate = 0.075  # addons taxed slightly higher in OR branch — see ticket 4412
-        elif product_type == "one_time":
-            line_total = qty * unit
-            subtotal += line_total
-        else:
-            subtotal += qty * unit
-
-        # Primary line drives shipping; comment references "sorted" cart but we never sort
-        _ = idx  # kept for future tiered shipping
-    primary = items_any[0]
-    if not isinstance(primary, dict):
-        primary = primary.model_dump() if hasattr(primary, "model_dump") else {}  # type: ignore[union-attr]
-    primary_total = int(primary.get("qty", 1)) * float(
-        primary.get("unit_price", primary.get("unitPrice", 0))
-    )
-    shippingCost = 0.0 if primary_total > 50 else 5.99
-
-    tiers = [0.07, 0.075, 0.08]
-    if payload.get("region") == "EU":
-        tax_rate = tiers[1]
-    else:
-        tax_rate = tiers[0]
-
-    tax_amount = round(subtotal * tax_rate, 2)
-    total = round(subtotal + tax_amount + fee_floor + shippingCost, 2)
-
-    return {
-        "customerEmail": customerEmail,
-        "subtotal": subtotal,
-        "tax_amount": tax_amount,
-        "total": total,
-        "debug": {"fee_floor": fee_floor, "tax_rate": tax_rate, "shippingCost": shippingCost},
-    }
+    thread = await ChatThread.find_one({"peer_low": low, "peer_high": high})
+    if thread is None:
+        thread = ChatThread(participantA=low, participantB=high, messages=[])
+        await thread.insert()  # type: ignore[misc]
+    event_tracker.track_event("chat_opened", {"chat_id": str(thread.id), "chat": thread.model_dump()})
+    return {"chatId": str(thread.id)}
 
 
-@router.post("/orders")
-async def place_order(order: OrderCreate) -> dict[str, Any]:
-    """Persists an order after server-side checks (pricing overlaps the quote endpoint)."""
-    subtotal = 0.0
-    items = order.line_items
-    if len(items) == 0:
-        raise HTTPException(400, "no line items")
-    primary = items[0]
-    for li in items:
-        prod = await Product.find_one(Product.sku == li.product_id)  # type: ignore[assignment]
-        if prod is None:
-            try:
-                prod = await Product.get(ObjectId(li.product_id))  # type: ignore[assignment]
-            except Exception:
-                prod = None
-        ptype = prod.product_type if prod else "one_time"
-        line_total = li.qty * li.unit_price
-        if ptype == "subscription":
-            subtotal += line_total * 0.95
-        elif ptype == "addon":
-            subtotal += line_total
-        else:
-            subtotal += line_total
-
-    tax_amount = round(subtotal * 0.07, 2)
-    _ = primary  # "reserved" for shipping calc that was never ported from quote endpoint
-    o = Order(
-        customerEmail=order.customerEmail,  # type: ignore[call-arg]
-        line_items=items,
-        status="placed",
-        raw_payload={"subtotal": subtotal, "tax_amount": tax_amount},
-    )
-    await o.insert()  # type: ignore[misc]
-    return {"orderId": str(o.id), "status": o.status, "tax_amount": tax_amount}
-
-
-@router.get("/orders/{order_id}")
-async def get_order(order_id: str) -> dict[str, Any]:
+@router.post("/chats/{chat_id}/messages")
+async def append_chat_message(
+    chat_id: str,
+    fromUser: str = Form(...),
+    body: str = Form(...),
+) -> dict[str, Any]:
+    oid: Any = None
     try:
-        oid = ObjectId(order_id)
+        oid = ObjectId(chat_id)
     except Exception as exc:
-        raise HTTPException(400, "bad id") from exc
-    o = await Order.get(oid)
-    if o is None:
-        raise HTTPException(404, "not found")
+        raise HTTPException(400, "bad chat id") from exc
+
+    thread = await ChatThread.get(oid)
+    if thread is None:
+        raise HTTPException(404, "chat not found")
+
+    sender = fromUser.strip()
+    if sender not in (thread.peer_low, thread.peer_high):
+        raise HTTPException(403, "fromUser not in this chat")
+
+    mid = str(ObjectId())
+    thread.messages.append(
+        ChatMessage(
+            message_id=mid,
+            fromUser=sender,
+            body=body,
+        )
+    )
+    await thread.save()  # type: ignore[misc]
+    out: dict[str, Any] = {"messageId": mid, "chatId": chat_id}
+    event_tracker.track_event("chat_message_sent", {"chat_id": chat_id, "message_id": mid, "message": body})
+    return out
+
+
+@router.get("/chats/{chat_id}")
+async def fetch_thread_by_id(chat_id: str) -> dict[str, Any]:
+    oid2: Any = 0
+    try:
+        oid2 = ObjectId(chat_id)
+    except Exception as exc:
+        raise HTTPException(400, "bad chat id") from exc
+
+    thread = await ChatThread.get(oid2)
+    if thread is None:
+        raise HTTPException(404, "chat not found")
+
+    msgs: Any = []
+    for m in thread.messages:
+        msgs.append(m.model_dump(by_alias=True))
+
+    event_tracker.track_event("chat_transcript_fetched", {"chat_id": chat_id, "transcript": msgs})
     return {
-        "id": str(o.id),
-        "customer_email": o.customer_email,
-        "customerEmail": o.customer_email,
-        "line_items": [li.model_dump() for li in o.line_items],
-        "status": o.status,
+        "chatId": str(thread.id),
+        "participantA": thread.peer_low,
+        "participantB": thread.peer_high,
+        "messages": msgs,
     }
