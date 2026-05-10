@@ -1,7 +1,7 @@
 [project]
 name = "social-promo-api"
 version = "0.1.0"
-description = "Social posts & chat API (FastAPI + Beanie + MongoDB)"
+description = "Social posts & comments API (FastAPI + Beanie + MongoDB)"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [

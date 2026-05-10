@@ -3,7 +3,7 @@ import os
 from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from app.models.chat import ChatThread
+from app.models.comment import Comment
 from app.models.post import Post
 
 # Environment variables for the MongoDB connection
@@ -15,5 +15,5 @@ async def init_db() -> None:
     client = AsyncIOMotorClient(_MONGODB_URL)
     await init_beanie(
         database=client[_DATABASE_NAME],
-        document_models=[Post, ChatThread],
+        document_models=[Post, Comment],
     )

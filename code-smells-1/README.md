@@ -1,10 +1,10 @@
-# Social posts & chat API (`code-smells-1`)
+# Social posts & comments API (`code-smells-1`)
 
 FastAPI + Beanie + MongoDB service.
 
 ## Context
 
-This is an API for a social media app. Here we have **Posts** and **Direct chats** between two participants. Consider there is not authentication layer.
+This is an API for a social media app. Here we have **Posts** and **Comments** on those posts (many comments per post, stored in a separate collection). Consider there is not authentication layer.
 
 ## Run
 

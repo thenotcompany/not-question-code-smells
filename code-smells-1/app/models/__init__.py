@@ -1,4 +1,4 @@
-from app.models.chat import ChatMessage, ChatThread
-from app.models.post import Post
+from app.models.comment import CommentDB
+from app.models.post import PostDB
 
-__all__ = ["ChatMessage", "ChatThread", "Post"]
+__all__ = ["CommentDB", "PostDB"]
