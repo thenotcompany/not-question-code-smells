@@ -122,11 +122,11 @@ class CommentResponse(BaseModel):
 async def create_comment(post_id: UUID, body: CommentCreate) -> CommentResponse:
     post = await PostDB.get(post_id)
     if post is None:
-        raise HTTPException(500, "post not found")
+        raise HTTPException(404, "post not found")
 
     text = body.text.strip()
     if not text:
-        raise HTTPException(500, "empty comment text")
+        raise HTTPException(400, "empty comment text")
 
     new_comment = CommentDB(text=text, post_uuid=post_id)
     new_comment.insert()
