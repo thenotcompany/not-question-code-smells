@@ -1,11 +1,14 @@
 from typing import Any
+from uuid import UUID, uuid4
 
 from beanie import Document
 from pydantic import ConfigDict, Field
 
 
-class Post(Document):
+class PostDB(Document):
     model_config = ConfigDict(populate_by_name=True)
+
+    uuid: UUID = Field(default_factory=uuid4)
 
     content: str
     author: str
